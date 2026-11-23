@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>회의 녹취실 · LWM</title>
+<link rel="stylesheet" href="/app.css"><script src="/app.js" defer></script>
+</head>
+<body>
+<header><div class="wrap mast"><div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>LWM <span class="divider"></span><span class="brand-sub">워크스페이스</span></div><span class="local"><b></b>로컬 모드</span></div></header>
+<main class="wrap">
+<h1>회의 녹취실</h1>
+<p class="intro">회의 녹음을 화자별 녹취록과 회의록으로 저장하세요.</p>
+<form id="form">
+<section class="card source"><div class="heading"><h2>녹음 파일</h2><span class="meta">오디오 1개</span></div>
+<div class="drop" id="drop">
+<div class="sound" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<strong id="file-name">녹음 파일을 여기에 놓으세요</strong>
+<span id="file-meta">WAV, MP3, M4A 지원</span>
+<button type="button" id="browse">파일 선택</button>
+<input type="file" id="file" accept=".mp3,.wav,.m4a" hidden>
+</div>
+</section>
+<section class="card settings"><h2>처리 설정</h2>
+<label class="field" for="model">음성 인식 모델</label>
+<select id="model"><option value="large-v3">Whisper Large V3</option><option value="komix-v2">Whisper Medium KoMix V2</option></select>
+<label class="field" for="diarizer">화자 구분 모델</label>
+<select id="diarizer"><option value="nemotron">NVIDIA Nemotron 3 · 최대 8명 자동 감지</option><option value="community">Community-1 + ECAPA</option></select>
+<div id="community-settings" hidden><label class="field" for="speakers">발언자 수</label>
+<input id="speakers" type="number" min="1" max="999" step="1" placeholder="자동 감지" inputmode="numeric">
+<details class="speaker-options"><summary>화자 분리 세부 설정</summary>
+<label class="field" for="threshold">목소리 거리 임계값</label>
+<input id="threshold" type="number" step="any" value="0.45" aria-describedby="threshold-help">
+<p id="threshold-help">같은 사람이 여러 ID로 나뉘면 값을 조금 높이고, 다른 사람이 한 ID로 묶이면 낮추세요. 기본값은 0.45입니다.</p></details></div>
+<fieldset><legend>결과 파일</legend>
+<label class="option"><input type="radio" name="mode" value="txt" checked><span>녹취록만</span><small>TXT</small></label>
+<label class="option"><input type="radio" name="mode" value="minutes"><span>녹취록 + 회의록</span><small>TXT · MD</small></label>
+</fieldset>
+<details class="pipeline"><summary>단계별 모델 보기</summary><dl><dt>화자 구분</dt><dd id="pipeline-diarizer">NVIDIA Nemotron 3</dd><dt>음성 인식</dt><dd id="pipeline-stt">Whisper Large V3</dd><dt>회의록 요약</dt><dd id="pipeline-llm">사용 안 함</dd></dl></details>
+<button id="start" type="submit" disabled>녹취 시작</button>
+</section>
+</form>
+<p id="error" role="alert" hidden></p>
+<section id="job" class="card job" hidden>
+<div class="heading"><h2 id="status" aria-live="polite"></h2><span id="job-model" class="meta"></span></div>
+<p id="job-name"></p>
+<div id="progress-panel" hidden>
+<div class="heading"><label for="progress">전체 진행률 <small>단계 기준</small></label><strong id="percent"></strong></div>
+<progress id="progress" max="100" aria-describedby="progress-detail"></progress>
+<span id="progress-detail"></span>
+</div>
+<div id="downloads"></div>
+</section>
+<footer><span class="device" aria-hidden="true"></span>RTX 4070 Ti SUPER <span class="footsep">/</span> 이 PC에서 처리</footer>
+</main>
+</body></html>

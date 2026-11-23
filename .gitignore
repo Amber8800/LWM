@@ -1,0 +1,9 @@
+.venv/
+.tools/
+.cache/
+models/
+runs/
+__pycache__/
+*.egg-info/
+.env
+.ruff_cache/

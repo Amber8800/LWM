@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lwm-meeting"
+version = "0.1.0"
+requires-python = ">=3.11,<3.13"
+description = "Offline Korean meeting transcription and minutes"
+dependencies = []
+
+[project.optional-dependencies]
+gpu = [
+  "torch==2.8.0", "torchaudio==2.8.0", "torchcodec>=0.7,<0.8",
+  "pyannote.audio==4.0.4", "speechbrain==1.0.3", "faster-whisper==1.2.1",
+  "ctranslate2>=4.6,<4.8", "scipy>=1.13,<2", "rapidfuzz>=3.9,<4", "imageio-ffmpeg==0.6.0",
+  "transformers==4.57.3", "huggingface-hub>=0.34,<1", "accelerate>=1,<2",
+]
+
+[project.scripts]
+lwm = "lwm.cli:main"
+
+[tool.setuptools]
+packages = ["lwm"]
+
+[tool.setuptools.package-data]
+lwm = ["webui/*.html", "webui/*.css", "webui/*.js"]
