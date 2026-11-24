@@ -3,13 +3,15 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>회의 녹취실 · LWM</title>
-<link rel="stylesheet" href="/app.css"><script src="/app.js" defer></script>
+<link rel="stylesheet" href="/app.css"><script src="/app.js" defer></script><script src="/library.js" defer></script>
 </head>
 <body>
 <header><div class="wrap mast"><div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>LWM <span class="divider"></span><span class="brand-sub">워크스페이스</span></div><span class="local"><b></b>로컬 모드</span></div></header>
 <main class="wrap">
 <h1>회의 녹취실</h1>
 <p class="intro">회의 녹음을 화자별 녹취록과 회의록으로 저장하세요.</p>
+<nav class="views" aria-label="녹취실 메뉴"><button id="new-view" aria-pressed="true">새 녹취</button><button id="saved-view" aria-pressed="false">지난 녹취</button></nav>
+<section id="new-panel" aria-label="새 녹취">
 <form id="form">
 <section class="card source"><div class="heading"><h2>녹음 파일</h2><span class="meta">오디오 1개</span></div>
 <div class="drop" id="drop">
@@ -50,6 +52,29 @@
 </div>
 <div id="downloads"></div>
 </section>
+</section>
+<section id="saved-panel" class="card library" hidden>
+  <div class="heading"><h2>지난 녹취</h2><span id="record-count" class="meta"></span></div>
+  <div class="library-tools">
+    <input type="search" id="record-search" aria-label="녹취 제목 또는 파일명 검색" placeholder="제목 또는 파일명 검색">
+    <select id="record-filter" aria-label="보관 위치"><option value="saved">보관함</option><option value="trash">휴지통</option></select>
+  </div>
+  <p id="library-message" role="status"></p><ul id="record-list"></ul>
+</section>
+<dialog id="record-dialog" aria-labelledby="record-heading">
+  <div class="heading"><h2 id="record-heading"></h2><button id="record-close" aria-label="녹취 닫기">닫기</button></div>
+  <p id="record-info" class="meta"></p>
+  <audio id="record-audio" controls preload="none" hidden></audio>
+  <div class="record-actions">
+    <button id="record-rename">제목 변경</button><button id="record-trash"></button><button id="record-delete" hidden>영구 삭제</button>
+  </div>
+  <form id="title-form" hidden><input id="record-title" aria-label="새 녹취 제목" maxlength="200" required><button>저장</button></form>
+  <div class="reader-tools">
+    <div class="views"><button id="read-transcript" aria-pressed="true">녹취록</button><button id="read-minutes" aria-pressed="false">회의록</button></div>
+    <a id="record-download" class="record-link" download>TXT 다운로드</a>
+  </div>
+  <p id="record-error" role="alert"></p><pre id="record-text" tabindex="0"></pre>
+</dialog>
 <footer><span class="device" aria-hidden="true"></span>RTX 4070 Ti SUPER <span class="footsep">/</span> 이 PC에서 처리</footer>
 </main>
 </body></html>

@@ -17,15 +17,18 @@ from urllib.parse import quote, unquote, urlsplit
 from urllib.request import ProxyHandler, build_opener
 
 from .audio import RATE
+from .library import RecordingLibrary
 from .models import ASR
 from .progress import PREFIX
 
 PORT = 8765
+WEB_VERSION = 2
 STATIC = Path(__file__).with_name("webui")
 ASSETS = {
     "/": ("index.html", "text/html"),
     "/app.css": ("app.css", "text/css"),
     "/app.js": ("app.js", "text/javascript"),
+    "/library.js": ("library.js", "text/javascript"),
 }
 STAGES = {
     "nemotron": "Nemotron으로 화자 구분 중",
@@ -81,6 +84,7 @@ class Jobs:
     def __init__(self, root):
         self.root = root.resolve()
         self.output = self.root / "runs" / "web"
+        self.library = RecordingLibrary(self.output.parent)
         self.lock = threading.Lock()
         self.jobs = {}
         self.latest = None
@@ -127,6 +131,19 @@ class Jobs:
                 return item["files"][kind], Path(item["name"]).stem + "-" + OUTPUTS[
                     kind
                 ]
+
+    def purge_recording(self, record_id):
+        with self.lock:
+            folder = self.library.folder(record_id)
+            related = [job for job, item in self.jobs.items()
+                       if item["files"].get("txt") == folder / "transcript.txt"]
+            if any(self.jobs[job]["state"] == "busy" for job in related):
+                raise ValueError("처리 중인 녹취는 작업을 마친 뒤 삭제할 수 있습니다.")
+            self.library.purge(record_id)
+            for job in related:
+                del self.jobs[job]
+            if self.latest in related:
+                self.latest = next(reversed(self.jobs), None)
 
     def process(self, job, temp, audio):
         try:
@@ -202,6 +219,7 @@ class Jobs:
                             and txt.is_file()
                         ):
                             files["txt"] = txt
+                            self.library.edit(txt.parent, source=request["name"], trashed=False)
                             self.update(job, files=files.copy())
                 if proc.wait():
                     raise RuntimeError(last or "처리를 완료하지 못했습니다.")
@@ -253,6 +271,40 @@ class LocalUI(BaseHTTPRequestHandler):
         port = self.server.server_port
         return self.headers.get("Host") in (f"127.0.0.1:{port}", f"localhost:{port}")
 
+    def stream_audio(self, path):
+        with path.open("rb") as stream:
+            size = os.fstat(stream.fileno()).st_size
+            start, end = 0, size - 1
+            requested = self.headers.get("Range")
+            if requested:
+                match = re.fullmatch(r"bytes=(\d*)-(\d*)", requested)
+                if match and any(match.groups()):
+                    first, last = match.groups()
+                    if first:
+                        start = int(first)
+                        end = min(end, int(last)) if last else end
+                    else:
+                        start = max(0, size - int(last))
+                else:
+                    start = size
+                if start > end:
+                    return self.send_bytes(b"", "audio/wav", 416, **{"Content-Range": f"bytes */{size}"})
+            self.send_response(206 if requested else 200)
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Type", "audio/wav")
+            self.send_header("Content-Length", str(end - start + 1))
+            if requested:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.end_headers()
+            stream.seek(start)
+            remaining = end - start + 1
+            try:
+                while remaining and (chunk := stream.read(min(remaining, 256 * 1024))):
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                pass
+
     def do_GET(self):
         if not self.local_host():
             return self.send_error(403)
@@ -265,8 +317,24 @@ class LocalUI(BaseHTTPRequestHandler):
             )
         if path == "/api/state":
             return self.reply(
-                {"app": "lwm-local", "latest": jobs.snapshot(jobs.latest)}
+                {"app": "lwm-local", "version": WEB_VERSION, "latest": jobs.snapshot(jobs.latest)}
             )
+        library = jobs.library
+        if path == "/api/recordings":
+            return self.reply(library.listing())
+        record = re.fullmatch(r"/api/recordings/([0-9a-f]{24})/(transcript|minutes|audio)", path)
+        if record:
+            record_id, kind = record.groups()
+            try:
+                folder = library.folder(record_id)
+                if kind == "audio":
+                    audio = library.audio(folder)
+                    if not audio:
+                        raise FileNotFoundError
+                    return self.stream_audio(audio)
+                return self.send_bytes(library.content(folder, kind), "text/plain; charset=utf-8")
+            except (OSError, ValueError, KeyError):
+                return self.send_error(404)
         match = re.fullmatch(r"/api/jobs/([0-9a-f]{32})(?:/(txt|md))?", path)
         if match:
             job, kind = match.groups()
@@ -294,6 +362,37 @@ class LocalUI(BaseHTTPRequestHandler):
             and origin != "http://" + self.headers["Host"]
         ):
             return self.send_error(403)
+        record = re.fullmatch(r"/api/recordings/([0-9a-f]{24})", self.path)
+        if record:
+            library = self.server.jobs.library
+            try:
+                size = int(self.headers.get("Content-Length", 0))
+                if not 0 < size <= 4096:
+                    raise ValueError
+                changes = json.loads(self.rfile.read(size))
+                if not isinstance(changes, dict):
+                    raise ValueError
+                if set(changes) == {"delete"} and changes["delete"] is True:
+                    try:
+                        self.server.jobs.purge_recording(record[1])
+                    except ValueError as exc:
+                        return self.reply({"error": str(exc)}, 409)
+                    return self.reply({"deleted": True})
+                if set(changes) == {"title"} and isinstance(changes["title"], str):
+                    changes["title"] = changes["title"].strip()
+                    if not 0 < len(changes["title"]) <= 200:
+                        raise ValueError
+                elif set(changes) != {"trashed"} or not isinstance(changes["trashed"], bool):
+                    raise ValueError
+                folder = library.folder(record[1])
+                library.edit(folder, **changes)
+                return self.reply(library.record(folder))
+            except FileNotFoundError:
+                return self.send_error(404)
+            except ValueError:
+                return self.reply({"error": "제목이나 보관함 설정을 확인하세요."}, 400)
+            except OSError:
+                return self.reply({"error": "변경 내용을 저장하지 못했습니다."}, 500)
         if self.path != "/api/jobs":
             return self.send_error(404)
         name = (
@@ -379,22 +478,31 @@ def main():
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--open", action="store_true", help="기본 브라우저 열기")
     args = parser.parse_args()
-    address = ("127.0.0.1", args.port)
-    url = f"http://127.0.0.1:{args.port}"
+    port = args.port
     if args.open:
-        try:
-            with build_opener(ProxyHandler({})).open(
-                url + "/api/state", timeout=2
-            ) as response:
-                if json.load(response).get("app") == "lwm-local":
-                    webbrowser.open(url)
-                    return
-        except (OSError, ValueError):
-            pass
+        opener = build_opener(ProxyHandler({}))
+        # Let a previous version finish any active job when the app is upgraded.
+        while port <= 65535:
+            url = f"http://127.0.0.1:{port}"
+            try:
+                with opener.open(url + "/api/state", timeout=2) as response:
+                    state = json.load(response)
+            except (OSError, ValueError):
+                break
+            if not isinstance(state, dict) or state.get("app") != "lwm-local":
+                break
+            if state.get("version") == WEB_VERSION:
+                webbrowser.open(url)
+                return
+            port += 1
+        if port > 65535:
+            raise SystemExit("사용 가능한 로컬 포트가 없습니다.")
+    address = ("127.0.0.1", port)
+    url = f"http://127.0.0.1:{port}"
     try:
         server = ThreadingHTTPServer(address, LocalUI)
     except OSError as exc:
-        raise SystemExit(f"{args.port} 포트를 열 수 없습니다.") from exc
+        raise SystemExit(f"{port} 포트를 열 수 없습니다.") from exc
     server.jobs = Jobs(Path.cwd())
     with server:
         print(url, flush=True)

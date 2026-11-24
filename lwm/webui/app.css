@@ -17,3 +17,33 @@ main{padding:clamp(36px,7vh,75px) 0 24px}h1,h2,p{margin:0}h1{font-size:clamp(2.2
 .speaker-options summary { cursor: pointer; }
 .speaker-options .field { margin-top: 12px; }
 #threshold-help { margin-top: 7px; line-height: 1.5; }
+
+.views { display: flex; gap: 4px; width: fit-content; padding: 4px; background: #e6ecf6; border-radius: 10px; }
+nav.views { margin: 0 0 18px; }
+.views button { border: none; background: transparent; color: #52647d; border-radius: 7px; padding: 8px 18px; font-weight: 650; }
+.views button[aria-pressed=true] { color: #234691; background: white; box-shadow: 0 1px 4px #253e651c; }
+.library-tools, .reader-tools, .record-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+.library-tools input, #record-title { min-width: 0; border: 1px solid #bfcbdd; border-radius: 8px; padding: 10px 12px; }
+.library-tools input { flex: 1; }
+.library-tools select { width: auto; }
+#library-message { color: #59687c; margin-top: 12px; }
+#record-list { margin: 0; padding: 0; list-style: none; }
+#record-list li + li { border-top: 1px solid #e4eaf2; }
+#record-list button { display: grid; gap: 6px; width: 100%; padding: 16px 6px; text-align: left; background: white; color: inherit; border: 0; overflow-wrap: anywhere; }
+#record-list button:hover { background: #f4f7ff; }
+#record-dialog { width: min(780px, calc(100% - 32px)); max-height: 88vh; padding: 25px; border: 1px solid #d1dbe8; border-radius: 14px; color: inherit; }
+#record-dialog::backdrop { background: #17274066; }
+#record-dialog h2 { margin: 0; overflow-wrap: anywhere; }
+#record-dialog .heading { align-items: flex-start; }
+#record-info { margin: 8px 0 15px; overflow-wrap: anywhere; }
+#record-audio { width: 100%; }
+#record-close, .record-actions button, #title-form button { flex-shrink: 0; background: white; color: #315080; border: 1px solid #bfcbdd; padding: 7px 12px; border-radius: 7px; }
+#title-form { display: flex; gap: 8px; margin-top: 12px; }
+#record-title { flex: 1; }
+.reader-tools { justify-content: space-between; flex-wrap: wrap; }
+.record-link { color: #294da9; font-weight: 650; }
+#record-text { white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; max-height: 43vh; margin: 12px 0 0; font: inherit; line-height: 1.8; background: #f5f7fa; padding: 14px; border-radius: 8px; }
+#record-error { color: #86291f; }
+.record-actions { flex-wrap: wrap; }
+.record-actions #record-delete { color: #942a27; border-color: #e4b5b1; }
+@media(max-width: 500px) { #record-dialog { padding: 16px; } .views button { padding: 8px 12px; } }

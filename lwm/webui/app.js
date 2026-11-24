@@ -66,13 +66,14 @@ function show(job) {
   controls(job.state === "busy");
   clearTimeout(timer);
   if (busy) timer = setTimeout(() => poll(job.id), 1200);
+  else if (job.files.length) document.dispatchEvent(new Event("recordings-changed"));
 }
 async function state() {
   const res = await fetch("/api/state");
   if (!res.ok) throw Error();
   const data = await res.json();
   if (data.latest) show(data.latest);
-  else { error(""); controls(false); }
+  else { el("job").hidden = true; error(""); controls(false); }
 }
 async function poll(id) {
   try {
