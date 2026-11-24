@@ -22,6 +22,29 @@ def t(name, a, b):
 
 
 class PipelineTests(unittest.TestCase):
+    def test_sentence_tail_with_partial_or_missing_diarization(self):
+        words = [w(" 나는 오늘 집에", 1000, 1700), w(" 갔다", 1700, 2020)]
+        result = attribute(words, [t("A", 1000, 1820)])
+        self.assertEqual([u["text"] for u in result], ["나는 오늘 집에 갔다"])
+        tail = result[0]["words"][-1]
+        self.assertEqual((tail["speaker"], tail["candidates"], tail["speaker_inferred"]), ("A", ["A"], True))
+        words[-1] = w(" 갔다", 1710, 1880)
+        result = attribute(words, [t("A", 1000, 1700)])
+        self.assertEqual(result[0]["words"][-1]["speaker"], "A")
+        self.assertEqual(result[0]["words"][-1]["candidates"], [])
+
+    def test_boundary_inference_stops_at_competing_voice_overlap_pause_and_unknown(self):
+        words = [w(" 앞", 0, 600), w(" 끝", 600, 780)]
+        for nearby in ([t("B", 810, 1050)], [t(UNKNOWN, 660, 750)],
+                       [dict(t("A", 650, 690), overlap=True)]):
+            with self.subTest(nearby=nearby):
+                self.assertEqual(attribute(words, [t("A", 0, 610), *nearby])[-1]["speaker"], UNKNOWN)
+        for tail in (w(" 끝", 1400, 1500), w(" 끝", 600, 4500)):
+            self.assertEqual(attribute([words[0], tail], [t("A", 0, 610)])[-1]["speaker"], UNKNOWN)
+        # An inferred word cannot anchor the next word, even inside the margin.
+        result = attribute([w(" 앞", 0, 600), w(" 한", 600, 700), w(" 둘", 700, 800)], [t("A", 0, 600)])
+        self.assertEqual([u["speaker"] for u in result], ["A", UNKNOWN])
+
     def test_turns_tie_overlap_and_unknown(self):
         turns = [t("A", 0, 100), t("B", 100, 210), t("C", 170, 210)]
         words = [

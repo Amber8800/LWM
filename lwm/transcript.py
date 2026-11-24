@@ -3,6 +3,7 @@ from collections import defaultdict
 from .audio import RATE
 
 UNKNOWN = "화자 미확정"
+BOUNDARY_MS = 250
 
 
 def stitch(parts):
@@ -36,13 +37,14 @@ def attribute(words, turns):
     turns = sorted(turns, key=lambda t: t["start_ms"])
     i = 0
     active = []
-    utterances = []
+    assigned = []
+    boundary_candidates = []
     for word in words:
         a, b = word["start_ms"], word["end_ms"]
-        while i < len(turns) and turns[i]["start_ms"] < b:
+        while i < len(turns) and turns[i]["start_ms"] < b + BOUNDARY_MS:
             active.append(turns[i])
             i += 1
-        active = [t for t in active if t["end_ms"] > a]
+        active = [t for t in active if t["end_ms"] > a - BOUNDARY_MS]
         spans = defaultdict(list)
         for t in active:
             lo, hi = max(a, t["start_ms"]), min(b, t["end_ms"])
@@ -81,6 +83,35 @@ def attribute(words, turns):
             "overlap": overlap,
             "candidates": sorted(scores),
         }
+        assigned.append(item)
+        boundary_candidates.append(
+            boundary_candidate(a, b, active, scores)
+            if speaker == UNKNOWN and not overlap
+            else None
+        )
+
+    # Only a directly attributed neighbouring word may anchor an inference.
+    direct = [word["speaker"] for word in assigned]
+    for idx, candidate in enumerate(boundary_candidates):
+        if candidate is None:
+            continue
+        word = assigned[idx]
+        neighbours = set()
+        if idx and abs(word["start_ms"] - assigned[idx - 1]["end_ms"]) <= BOUNDARY_MS:
+            neighbours.add(direct[idx - 1])
+        if (
+            idx + 1 < len(assigned)
+            and abs(assigned[idx + 1]["start_ms"] - word["end_ms"]) <= BOUNDARY_MS
+        ):
+            neighbours.add(direct[idx + 1])
+        if neighbours - {UNKNOWN} == {candidate}:
+            word["speaker"] = candidate
+            word["speaker_inferred"] = True
+
+    utterances = []
+    for item in assigned:
+        a, b = item["start_ms"], item["end_ms"]
+        speaker, overlap = item["speaker"], item["overlap"]
         previous = utterances[-1] if utterances else None
         if (
             not previous
@@ -101,7 +132,32 @@ def attribute(words, turns):
             utterances.append(previous)
         previous["words"].append(item)
         previous["end_ms"] = max(b, previous["end_ms"])
-        previous["text"] += word["text"]
+        previous["text"] += item["text"]
     for u in utterances:
         u["text"] = u["text"].strip()
     return utterances
+
+
+def boundary_candidate(a, b, active, scores):
+    """Allow a partial match or a short word just outside a single voice's turn."""
+    duration = b - a
+    if not 0 < duration <= 3000:
+        return None
+    nearby = [
+        t for t in active
+        if t["start_ms"] < b + BOUNDARY_MS and t["end_ms"] > a - BOUNDARY_MS
+    ]
+    speakers = {t["speaker"] for t in nearby}
+    if len(speakers) != 1 or UNKNOWN in speakers or any(t.get("overlap") for t in nearby):
+        return None
+    speaker = next(iter(speakers))
+    support = scores.get(speaker, 0)
+    if support >= 80 and support * 5 >= duration:
+        return speaker
+    # For very short tails, require the whole word to fit the padded turn.
+    if duration <= BOUNDARY_MS and any(
+        t["start_ms"] - BOUNDARY_MS <= a and b <= t["end_ms"] + BOUNDARY_MS
+        for t in nearby
+    ):
+        return speaker
+    return None
