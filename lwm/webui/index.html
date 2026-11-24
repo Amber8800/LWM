@@ -24,7 +24,7 @@
 </section>
 <section class="card settings"><h2>처리 설정</h2>
 <label class="field" for="model">음성 인식 모델</label>
-<select id="model"><option value="large-v3">Whisper Large V3</option><option value="komix-v2">Whisper Medium KoMix V2</option></select>
+<select id="model"><option value="komix-v2" selected>Whisper Medium KoMix V2</option><option value="buzzasr-korean">BuzzASR Korean · 빔 5</option><option value="large-v3">Whisper Large V3</option></select>
 <label class="field" for="diarizer">화자 구분 모델</label>
 <select id="diarizer"><option value="nemotron">NVIDIA Nemotron 3 · 최대 8명 자동 감지</option><option value="community">Community-1 + ECAPA</option></select>
 <div id="community-settings" hidden><label class="field" for="speakers">발언자 수</label>
@@ -37,7 +37,7 @@
 <label class="option"><input type="radio" name="mode" value="txt" checked><span>녹취록만</span><small>TXT</small></label>
 <label class="option"><input type="radio" name="mode" value="minutes"><span>녹취록 + 회의록</span><small>TXT · MD</small></label>
 </fieldset>
-<details class="pipeline"><summary>단계별 모델 보기</summary><dl><dt>화자 구분</dt><dd id="pipeline-diarizer">NVIDIA Nemotron 3</dd><dt>음성 인식</dt><dd id="pipeline-stt">Whisper Large V3</dd><dt>회의록 요약</dt><dd id="pipeline-llm">사용 안 함</dd></dl></details>
+<details class="pipeline"><summary>단계별 모델 보기</summary><dl><dt>화자 구분</dt><dd id="pipeline-diarizer">NVIDIA Nemotron 3</dd><dt>음성 인식</dt><dd id="pipeline-stt">Whisper Medium KoMix V2</dd><dt>회의록 요약</dt><dd id="pipeline-llm">사용 안 함</dd></dl></details>
 <button id="start" type="submit" disabled>녹취 시작</button>
 </section>
 </form>

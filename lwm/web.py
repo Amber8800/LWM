@@ -22,7 +22,7 @@ from .models import ASR
 from .progress import PREFIX
 
 PORT = 8765
-WEB_VERSION = 2
+WEB_VERSION = 3
 STATIC = Path(__file__).with_name("webui")
 ASSETS = {
     "/": ("index.html", "text/html"),

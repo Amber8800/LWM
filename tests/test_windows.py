@@ -14,9 +14,11 @@ class WindowTests(unittest.TestCase):
         for pos in (2, 25, 51):
             audio[pos * RATE : (pos * RATE) + 3200] = 0.3
         lengths = []
+        beam_sizes = []
 
         class Decoder:
             def transcribe(self, clip, **settings):
+                beam_sizes.append(settings["beam_size"])
                 self_clip = np.r_[False, clip != 0, False]
                 edges = np.flatnonzero(np.diff(self_clip))
                 lengths.append(len(clip))
@@ -29,4 +31,5 @@ class WindowTests(unittest.TestCase):
         words = decode_windows(Decoder(), audio, RATE, None)
         self.assertEqual([w["start_ms"] for w in words], [3000, 26000, 52000])
         self.assertLessEqual(max(lengths), 30 * RATE)
+        self.assertEqual(set(beam_sizes), {5})
         self.assertEqual(decode_windows(Decoder(), audio[:RATE], 0, None), [])

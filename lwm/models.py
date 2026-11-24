@@ -8,10 +8,12 @@ from pathlib import Path
 
 from .common import digest, lock, read, save
 
-ASR = ("large-v3", "komix-v2")
+ASR = ("large-v3", "komix-v2", "buzzasr-korean")
+ASR_BASE = {"komix-v2": "openai/whisper-medium", "buzzasr-korean": "openai/whisper-large-v3"}
 SOURCES = {
     "large-v3": "openai/whisper-large-v3",
     "komix-v2": "seastar105/whisper-medium-komixv2",
+    "buzzasr-korean": "BuzzASR/korean",
     "segment": "pyannote/speaker-diarization-community-1",
     "embed": "speechbrain/spkrec-ecapa-voxceleb",
     "nemotron": "nvidia/Nemotron-3-Diarization",
@@ -24,8 +26,13 @@ NEMOTRON = "Nemotron-3-Diarization.q8_0.gguf"
 WEIGHTS = {"segment": SEGMENT, "embed": EMBED, "minutes": GGUF, "nemotron": NEMOTRON}
 
 
+def runtime_folder(root, name):
+    # Keep the existing Transformers checkpoint alongside its CTranslate2 conversion.
+    return Path(root).resolve() / ("buzzasr-korean-ct2" if name == "buzzasr-korean" else name)
+
+
 def inventory(root, name):
-    folder = Path(root).resolve() / name
+    folder = runtime_folder(root, name)
     manifest = folder / "manifest.json"
     if not manifest.is_file():
         raise ValueError(
@@ -67,7 +74,7 @@ def prepare(root, name, revision="main"):
 
     root = Path(root).resolve()
     with lock(root / f".{name}.lock"):
-        dst = root / name
+        dst = runtime_folder(root, name)
         if dst.exists():
             _, record = inventory(root, name)
             if revision not in ("main", record["revision"]):
@@ -131,7 +138,7 @@ def prepare(root, name, revision="main"):
             "source": SOURCES[name],
             "revision": commit,
             "license": (info.card_data or {}).get("license") or "확인 필요",
-            "base": "openai/whisper-medium" if name == "komix-v2" else None,
+            "base": ASR_BASE.get(name),
             "converter": version("ctranslate2") if name in ASR else None,
             "sha256": {
                 p.relative_to(stage).as_posix(): digest(p)

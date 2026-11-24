@@ -3,7 +3,7 @@ const el = id => document.getElementById(id);
 let selected = null;
 let busy = true;
 let timer;
-const models = {"large-v3":"Whisper Large V3", "komix-v2":"Whisper Medium KoMix V2"};
+const models = {"large-v3":"Whisper Large V3", "komix-v2":"Whisper Medium KoMix V2", "buzzasr-korean":"BuzzASR Korean · 빔 5"};
 const diarizers = {nemotron:"NVIDIA Nemotron 3", community:"Community-1 + ECAPA"};
 function controls(locked) {
   busy = locked;

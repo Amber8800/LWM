@@ -6,7 +6,6 @@ from pathlib import Path
 
 from .audio import RATE, frames
 from .common import digest, offline, read, save
-from .models import ASR
 from .runner import asr_job, audio_cache, gpu_lock, model_job, target_gpu
 from .transcript import UNKNOWN, attribute
 
@@ -90,11 +89,11 @@ def rates(counts):
 
 
 def pick(table):
-    best = min(ASR, key=lambda m: table[m]["cer"])
+    best = min(table, key=lambda m: table[m]["cer"])
     ref = table[best]
     candidates = [
         m
-        for m in ASR
+        for m in table
         if table[m]["cer"] <= ref["cer"] + 0.005
         and (
             ref["term_accuracy"] is None
@@ -124,7 +123,7 @@ def benchmark(args):
         if m["split"] != args.split
     }
     with gpu_lock(gpu):
-        models = {m: model_job(args.models, m) for m in ASR}
+        models = {m: model_job(args.models, m) for m in dict.fromkeys(args.stt)}
         for meeting in selected:
             audio, identity = audio_cache(
                 manifest.parent / meeting["audio"], args.output
@@ -138,7 +137,7 @@ def benchmark(args):
             if "clova_text" in meeting:
                 counts = text_counts(ref, meeting["clova_text"], terms)
                 baselines.append({"id": meeting["id"], **counts, **rates(counts)})
-            for model in ASR:
+            for model in models:
                 trials = []
                 for _ in range(args.repeats):
                     # Each trial loads a fresh worker and cannot reuse ASR chunks.
@@ -168,7 +167,7 @@ def benchmark(args):
                     }
                 )
     table = {}
-    for model in ASR:
+    for model in models:
         group = [r for r in records if r["model"] == model]
         totals = {k: sum(r["counts"][k] for r in group) for k in group[0]["counts"]}
         if not totals["chars"]:

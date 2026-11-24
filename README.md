@@ -4,7 +4,7 @@ RTX 4070 Ti SUPER 한 장에서 WAV·MP3·M4A 녹음을 처리하는 Windows CLI
 
 ## 브라우저에서 사용
 
-프로젝트의 **회의 녹취.cmd**를 더블클릭하면 기본 브라우저에서 로컬 웹앱이 열립니다. 녹음을 놓고 STT 모델과 출력 형식을 고른 뒤 **녹취 시작**을 누르세요. 기본값은 Whisper Large V3와 녹취록 TXT입니다. 회의록을 선택하면 Gemma 3 12B가 요약한 Markdown도 다운로드할 수 있습니다.
+프로젝트의 **회의 녹취.cmd**를 더블클릭하면 기본 브라우저에서 로컬 웹앱이 열립니다. 녹음을 놓고 STT 모델과 출력 형식을 고른 뒤 **녹취 시작**을 누르세요. 기본값은 Whisper Medium KoMix V2와 녹취록 TXT입니다. 회의록을 선택하면 Gemma 3 12B가 요약한 Markdown도 다운로드할 수 있습니다.
 
 기본 화자 모델은 NVIDIA Nemotron 3이며 최대 8명을 자동 감지합니다. 기존 Community-1 + ECAPA를 선택한 경우 실제로 말한 사람 수를 알면 **발언자 수**에 입력하세요. 빈칸이면 자동 감지합니다. **화자 분리 세부 설정**에서 코사인 거리 임계값을 조정할 수 있습니다. 기본값은 0.45이며 값을 높이면 같은 화자로 인정하는 거리 범위가 넓어집니다. 인원을 지정하면 반복해서 관측된 목소리를 기준으로 구간을 배정하고, 매칭 근거가 약한 구간은 미확정으로 표시합니다.
 
@@ -20,18 +20,20 @@ RTX 4070 Ti SUPER 한 장에서 WAV·MP3·M4A 녹음을 처리하는 Windows CLI
 
 ~~~powershell
 .\.venv\Scripts\python -m lwm doctor
-.\.venv\Scripts\python -m lwm run "D:\녹음\주간회의.m4a" --stt large-v3
+.\.venv\Scripts\python -m lwm run "D:\녹음\주간회의.m4a"
 ~~~
 
-출력 위치는 명령 마지막에 표시됩니다. 기본 폴더는 runs입니다. 평가 전에는 Large V3를 기준 모델로 사용합니다. 기본값은 --diarizer nemotron입니다. 기존 군집 방식을 사용하려면 --diarizer community를 선택하세요. --speakers 4 또는 --threshold를 단독 지정한 기존 명령도 community를 선택합니다. --threshold는 코사인 거리 기준의 화자 군집 임계값이고 초기값은 0.45입니다. 개발용 회의에서 보정한 값을 최종 평가에도 동일하게 적용하세요.
+출력 위치는 명령 마지막에 표시됩니다. 기본 폴더는 runs입니다. STT 기본값은 KoMix-v2입니다. Whisper Large V3를 사용하려면 --stt large-v3를 지정하세요. 기본값은 --diarizer nemotron입니다. 기존 군집 방식을 사용하려면 --diarizer community를 선택하세요. --speakers 4 또는 --threshold를 단독 지정한 기존 명령도 community를 선택합니다. --threshold는 코사인 거리 기준의 화자 군집 임계값이고 초기값은 0.45입니다. 개발용 회의에서 보정한 값을 최종 평가에도 동일하게 적용하세요.
 
 | 명령 | 용도 |
 |---|---|
 | asr 녹음.wav --stt komix-v2 | 선택한 모델로 타임스탬프가 있는 전사만 생성 |
+| run 녹음.mp3 --stt buzzasr-korean | BuzzASR Korean을 빔 크기 5로 사용해 전사와 회의록 생성 |
 | run 녹음.mp3 --transcript-only | 화자 분리와 전사까지 실행 |
 | run 녹음.m4a --selection 평가결과/benchmark.json | 평가에서 선택한 모델·정밀도·프롬프트로 회의록 생성 |
 | summarize 결과/transcript.json --names 이름표.json | 전사본을 재사용해 이름을 반영한 회의록 생성 |
 | benchmark 평가셋.json --split test --output 평가결과 | 두 모델을 동일한 조건으로 3회씩 실행 |
+| benchmark 평가셋.json --stt komix-v2 buzzasr-korean | KoMix-v2와 BuzzASR Korean을 동일한 조건으로 비교 |
 | score 정답전사.json 결과/transcript.json | CER·용어 점수·DER·정렬된 어절의 화자 정답률 계산 |
 | score-review 검수.json | 사람이 판정한 결정·할 일·담당자·근거의 정확도 집계 |
 
@@ -56,9 +58,12 @@ uv pip install --python .venv/Scripts/python.exe -e '.[gpu]'
 
 ### 모델 출처
 
+새 PC에 BuzzASR Korean을 추가하려면 `python -m lwm prepare buzzasr-korean`을 실행합니다. 웹에서는 **음성 인식 모델 → BuzzASR Korean · 빔 5**를 선택합니다.
+
 | 이름 | 구성 |
 |---|---|
 | large-v3 | OpenAI 원본을 로컬에서 FP16 CTranslate2로 변환합니다. [원본](https://huggingface.co/openai/whisper-large-v3) |
+| buzzasr-korean | Whisper Large V3 한국어 파인튜닝 모델을 FP16 CTranslate2로 변환합니다. [원본](https://huggingface.co/BuzzASR/korean) |
 | komix-v2 | seastar105의 OpenAI Whisper Medium 한국어 미세조정본을 같은 방식으로 변환합니다. 배포 용도에 따른 이용 조건은 원 배포자에게 확인해야 합니다. [원본](https://huggingface.co/seastar105/whisper-medium-komixv2) |
 | nemotron | NVIDIA Nemotron-3-Diarization Q8_0과 NeMo-Speech.cpp 0.3.0 CUDA 런타임을 사용합니다. 녹음 한 개에 스트림 한 개를 열고 5초씩 읽어 화자 정보를 이어갑니다. [공식 가중치](https://huggingface.co/nvidia/Nemotron-3-Diarization) |
 | segment | pyannote Community-1에서 segmentation/pytorch_model.bin만 가져옵니다. [공식 구성](https://huggingface.co/pyannote/speaker-diarization-community-1/tree/main) |

@@ -53,8 +53,10 @@ def parser():
             p.add_argument("--transcript-only", action="store_true")
     p = commands.add_parser("summarize", help="저장한 전사본에서 회의록 재생성")
     p.add_argument("transcript", type=Path)
-    p = commands.add_parser("benchmark", help="같은 회의로 두 STT 후보 비교")
+    p = commands.add_parser("benchmark", help="같은 회의로 STT 후보 비교")
     p.add_argument("dataset", type=Path)
+    p.add_argument("--stt", nargs="+", choices=ASR, default=("large-v3", "komix-v2"),
+                   help="비교할 모델 목록 (기본 large-v3 komix-v2)")
     p.add_argument("--split", choices=["dev", "test"], default="test")
     p.add_argument("--repeats", type=int, default=3)
     p = commands.add_parser("score", help="사람이 교정한 정답과 화자·전사 비교")
@@ -109,8 +111,8 @@ def dispatch(args):
                 raise ValueError("선정 보고서와 설치된 모델이 다릅니다.")
             args.precision, args.prompt = selection["precision"], selection["prompt"]
         if not args.stt:
-            args.stt = "large-v3"
-            print("비교 보고서 미지정: 기준 모델 large-v3 사용", file=sys.stderr)
+            args.stt = "komix-v2"
+            print(f"기본 음성 인식 모델 {args.stt} 사용", file=sys.stderr)
     if args.cmd == "run":
         return process_file(args)
     if args.cmd == "benchmark":
